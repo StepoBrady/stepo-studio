@@ -714,11 +714,21 @@ function updateSubs(){const f=FORMATS[Studio.format];if(f&&f.summary){const s=f.
 function sizeStage(){
   const f=FORMATS[Studio.format];const cv=f.canvas;
   stage.width=cv.w;stage.height=cv.h;
-  // fit within stage area
-  const maxW=Math.min(760, (cv.w/cv.h>=1? 760: 460));
-  stage.style.width=Math.min(maxW,cv.w)+'px';
-  $('pv-label').textContent=cv.label||'';
+  // Fit the preview within BOTH the available width and height of the stage area,
+  // so a tall (square/story) canvas is never clipped at the bottom of the box.
+  let availW=760, availH=Infinity;
+  const area=$('stage-area'), label=$('pv-label');
+  if(area){const cs=getComputedStyle(area);
+    availW=area.clientWidth-parseFloat(cs.paddingLeft||0)-parseFloat(cs.paddingRight||0);
+    availH=area.clientHeight-parseFloat(cs.paddingTop||0)-parseFloat(cs.paddingBottom||0)-(label?label.offsetHeight+16:24);}
+  const capW=Math.min(760,cv.w,availW>60?availW:760);
+  const wByH=(isFinite(availH)&&availH>60?availH:Infinity)*(cv.w/cv.h);
+  const w=Math.max(220,Math.floor(Math.min(capW,wByH)));
+  stage.style.width=w+'px';
+  if(label)label.textContent=cv.label||'';
 }
+// Re-fit the preview when the window changes, so it never overflows the box.
+let _rsz;window.addEventListener('resize',()=>{clearTimeout(_rsz);_rsz=setTimeout(()=>{if(Studio.format&&!$('workspace').classList.contains('hidden')){sizeStage();}},120);});
 
 /* ===================== format switching ===================== */
 function setFormat(f){
