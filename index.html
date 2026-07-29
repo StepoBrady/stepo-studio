@@ -2184,6 +2184,113 @@ Respond with ONLY a JSON object, no markdown, shaped exactly:
     draw();
   }
 
+    /* ===== Post Designer v2: AI art director (Compose) ===== */
+  const PHOTO_CAPTIONS = {
+    'analytics-observations':'observations dashboard: total counts and risk levels',
+    'analytics-corrective-trend':'chart of corrective actions closed over time',
+    'analytics-chats':'chat-based analytics, asking safety data questions',
+    'conversational_analytics':'conversational analytics, plain-language Q&A on safety data',
+    'analytics-sif-prevention':'serious injury and fatality prevention analytics',
+    'capture-observation-ios':'the iOS app capturing a field observation in seconds',
+    'observation-detail':'a single structured observation record with severity',
+    'observation-report-cover':'the cover of an observation report',
+    'inspection-report':'a completed digital inspection report',
+    'safety-report-detail':'detail view of a safety report',
+    'executive-brief':'an executive brief summary document',
+    'executive-brief-risk':'an executive brief with a risk summary',
+    'risk-ranked-chart':'a risk-ranked bar chart',
+    'energy-source-analysis':'a hazard energy-source breakdown',
+    'company-policy-agent':'the company policy AI agent answering with citations',
+    'continuous-improvement-loop':'a continuous improvement loop diagram',
+    'learning-toolbox-talk-zh':'a toolbox talk generated in Chinese, multilingual',
+    'traffic-control-plan':'a traffic control plan',
+    'traffic-control-schematic':'a traffic control schematic',
+    'phone_observations_dark':'a phone showing observations in a dark interface',
+    'phone_qa':'a phone showing a safety question and answer',
+    'phone_call':'capturing an observation by voice on a phone',
+    'sophie-on-phone':'the StepoAI app open on a phone',
+    'hazard-callouts-trench':'a jobsite trench photo with numbered hazard callouts',
+    'hazard-trench-before':'a raw jobsite trench hazard photo',
+    'highrise-deck-ironworkers':'ironworkers on a high-rise deck'
+  };
+  function gen2System(){
+    const lib=Object.keys(PHOTO_CAPTIONS).map(k=>'- '+k+': '+PHOTO_CAPTIONS[k]).join('\n');
+    return 'You are the art director for one StepoAI social post. Given an idea, write the copy in StepoAI voice, choose the single best REAL photo from the library for the message (or none), and produce 3 or 4 finished variations of the SAME message across DIFFERENT layouts.\n\n'
+      +STEPO_FACTS+'\n\n'+STEPO_POST+'\n\n'
+      +'Voice: operator, plain, grounded, for safety and construction people who can smell marketing. No dashes of any kind. No exclamation points. Never the words partner, partnership, foreman (say team leader), game changer, revolutionary, empower, unlock, transform, seamless, cutting edge. Only these metrics when a number helps: 30 seconds versus 5 plus minutes, 4x more observations, 12x more corrective actions closed, +23%, 95.6%. Write large gains as multipliers, never big percentages. Headlines under 56 chars (photostatement under 40).\n\n'
+      +'Photo library (pick a key that genuinely fits the message; favor the product-demo and screenshot ones for anything about the product or the data):\n'+lib+'\n\n'
+      +'Use ONLY these five layouts and their fields:\n'
+      +'- hook: hookText (bold statement under 90 chars), hookSub (one supporting sentence). No photo.\n'
+      +'- stat: statNum (short, like 4x or 30 sec or 95.6%), statLabel (what it measures), statContext (one sentence). No photo.\n'
+      +'- photostat: statNum, statLabel, statContext, plus a photo key (the number sits over a real screenshot).\n'
+      +'- photostatement: fieldKicker (short eyebrow), fieldHeadline (a SHORT punchy line under 40 chars, shown huge in caps), plus a photo key (full bleed).\n'
+      +'- splitpanel: fieldKicker (short eyebrow), fieldHeadline (a few bold words), fieldCaption (one sentence), spCta (2-3 word button), plus a photo key (photo beside the copy).\n\n'
+      +'Make the variations genuinely different looks. Put the best photo on the photo layouts. Include at least one photo layout when a fitting photo exists.\n\n'
+      +'Respond with ONLY a JSON object, no markdown, shaped exactly:\n'
+      +'{"narrative":"<LinkedIn caption body, 40 to 70 words, operator voice>","variations":[{"template":"<one of the five>","photo":"<library key or null>","fields":{...only that template fields...}}]}';
+  }
+  async function composeV2(idea, angle){
+    let key='';try{key=(document.getElementById('cv-key')&&document.getElementById('cv-key').value.trim())||localStorage.getItem('stepoStudio.apiKey')||'';}catch(e){}
+    if(!key){const err=new Error('nokey');throw err;}
+    const prompt='Idea: '+idea+(angle&&angle!=='auto'?('\nLean toward a '+angle+' angle.'):'');
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-opus-4-8',max_tokens:1800,system:gen2System(),messages:[{role:'user',content:prompt}]})});
+    if(!res.ok){let m=res.status+'';try{const e=await res.json();m=(e.error&&e.error.message)||m;}catch(_){}throw new Error(res.status===401?'badkey':m);}
+    const data=await res.json();try{if(typeof recordUsage==='function')recordUsage('post',data.usage);}catch(_){}
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    return JSON.parse(txt.replace(/^\s*```(?:json)?/i,'').replace(/```\s*$/,'').trim());
+  }
+  function openCompose(){
+    const old=document.getElementById('cv-modal');if(old)old.remove();
+    const hasKey=(function(){try{return !!localStorage.getItem('stepoStudio.apiKey')}catch(e){return false}})();
+    const wrap=document.createElement('div');wrap.id='cv-modal';
+    wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px';
+    const card=document.createElement('div');
+    card.style.cssText='background:#fff;color:#0C0C0C;border-radius:16px;width:min(760px,96vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;font-family:Poppins,system-ui,sans-serif';
+    card.innerHTML='<div style="display:flex;align-items:flex-start;gap:10px;padding:16px 18px;border-bottom:1px solid #eee"><div><b style="font-size:18px">Compose a post</b><div style="color:#5C6672;font-size:13px">StepoAI writes the copy, picks a real photo, and shows you a few looks.</div></div><button id="cv-x" style="margin-left:auto;border:0;background:#f0f0ee;border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit">Close</button></div>'
+      +'<div style="padding:16px 18px;overflow:auto"><textarea id="cv-idea" rows="3" placeholder="What is this post about? e.g. Crews log 4x more observations once capture takes about 30 seconds." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;font:inherit;box-sizing:border-box"></textarea>'
+      +'<div id="cv-angles" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"></div>'
+      +'<button id="cv-go" style="margin-top:12px;background:#0C0C0C;color:#EAF400;border:0;border-radius:10px;padding:10px 18px;font:inherit;font-weight:700;cursor:pointer">Draft it →</button>'
+      +(hasKey?'':'<div style="margin-top:12px"><label style="font-size:11px;font-weight:700;color:#5C6672">ANTHROPIC API KEY — saved on this device, one time</label><input id="cv-key" type="password" placeholder="sk-ant-…" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font:inherit;box-sizing:border-box"></div>')
+      +'<div id="cv-status" style="margin-top:12px;font-size:13px;color:#5C6672;min-height:16px"></div>'
+      +'<div id="cv-results" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px"></div></div>';
+    wrap.appendChild(card);document.body.appendChild(wrap);
+    let angle='auto';
+    const ANG=[['auto','Auto'],['stat','Stat'],['story','Field story'],['hook','Hook'],['proof','Proof']];
+    const angleBar=card.querySelector('#cv-angles');
+    const abtns=ANG.map(([id,label])=>{const b=document.createElement('button');b.textContent=label;b.style.cssText='border:1px solid #ddd;background:#fff;border-radius:999px;padding:4px 12px;font:inherit;font-size:12px;cursor:pointer';b.onclick=()=>{angle=id;abtns.forEach((x,i)=>{const on=ANG[i][0]===id;x.style.background=on?'#EAF400':'#fff';x.style.borderColor=on?'#0C0C0C':'#ddd';});};angleBar.appendChild(b);return b;});
+    abtns[0].style.background='#EAF400';abtns[0].style.borderColor='#0C0C0C';
+    const status=card.querySelector('#cv-status'),results=card.querySelector('#cv-results');
+    function pvText(v){const f=v.fields||{};return f.fieldHeadline||f.hookText||f.statLabel||'';}
+    async function go(){
+      const idea=(card.querySelector('#cv-idea').value||'').trim();
+      if(!idea){status.textContent='Type an idea first.';return;}
+      const kf=card.querySelector('#cv-key');if(kf){try{localStorage.setItem('stepoStudio.apiKey',kf.value.trim())}catch(_){}}
+      status.textContent='StepoAI is composing a few looks…';results.innerHTML='';
+      try{
+        const obj=await composeV2(idea,angle);
+        const vars=(obj.variations||[]).slice(0,4);
+        if(!vars.length){status.textContent='No looks came back. Try rephrasing.';return;}
+        status.textContent=vars.length+' looks. Pick one to open it, then tweak or export.';
+        vars.forEach(v=>{v.narrative=obj.narrative;v.fmt=v.fmt||'square';
+          const c=document.createElement('button');
+          c.style.cssText='text-align:left;border:1px solid #e6e6e2;border-radius:12px;padding:12px;background:#fafaf8;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px;min-height:88px';
+          c.onmouseenter=()=>{c.style.borderColor='#0C0C0C'};c.onmouseleave=()=>{c.style.borderColor='#e6e6e2'};
+          const tn=(typeof TN!=='undefined'&&TN[v.template])||v.template;
+          c.innerHTML='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="background:#0C0C0C;color:#EAF400;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">'+tn+'</span>'+(v.photo?'<span style="font-size:11px;color:#5C6672">📷 '+v.photo+'</span>':'')+'</div><div style="font-weight:600;font-size:14px;line-height:1.25">'+pvText(v)+'</div>';
+          c.onclick=()=>{applyVariation(v);wrap.remove();};results.appendChild(c);});
+      }catch(e){
+        status.textContent = e.message==='nokey' ? 'Paste your Anthropic key above, then Draft it.'
+          : e.message==='badkey' ? 'That API key was rejected (401). Paste a valid key from console.anthropic.com.'
+          : 'Could not compose ('+(e.message||'error')+').';
+      }
+    }
+    card.querySelector('#cv-go').addEventListener('click',go);
+    card.querySelector('#cv-x').onclick=()=>wrap.remove();
+    wrap.onclick=e=>{if(e.target===wrap)wrap.remove();};
+    card.querySelector('#cv-idea').focus();
+  }
+
   async function generateFromIdea(){const idea=sane($('p-gen-idea').value),st=$('p-gen-status'),btn=$('p-gen-go');
     const key=sane($('p-gen-key').value)||(()=>{try{return localStorage.getItem('stepoStudio.apiKey')||''}catch(e){return''}})();
     const set=(s,cls)=>{if(st){st.textContent=s;st.className='foot-note'+(cls?' '+cls:'');}};
@@ -2214,7 +2321,7 @@ Respond with ONLY a JSON object, no markdown, shaped exactly:
 
   function drawSeries(){const txt=(state.seriesName||'Field Notes')+' · '+(state.seriesNum||1);MO(24,600);const bw=ctx.measureText(txt).width+40;const x=W-M-bw,y=M-2;ctx.fillStyle='rgba(234,244,0,.94)';rr(x,y,bw,46,23);ctx.fill();ctx.fillStyle='#111';ctx.fillText(txt,x+20,y+30);ctx.textAlign='left';}
 
-  function genBar(){return `<div class="row2" style="margin-bottom:10px"><button class="btn" id="p-idea" type="button">💡 Idea starter</button><button class="btn" id="p-genopen" type="button">✨ Generate with AI</button><button class="btn" id="p-variations" type="button">📚 Variations</button></div>
+  function genBar(){return `<button class="btn dark" id="p-compose" type="button" style="width:100%;margin-bottom:10px">✨ Compose a post</button><div class="row2" style="margin-bottom:10px"><button class="btn" id="p-idea" type="button">💡 Idea starter</button><button class="btn" id="p-genopen" type="button">✨ Generate with AI</button><button class="btn" id="p-variations" type="button">📚 Variations</button></div>
     <div id="p-ideamsg" class="foot-note" style="display:none;text-align:left;margin:-2px 0 8px"></div>
     <div id="p-idearate" style="display:none;align-items:center;gap:8px;margin:-2px 0 10px;font-size:12px;color:#5C6672">
       <span id="p-idearate-q" style="font-weight:600">More like this?</span>
@@ -2232,7 +2339,7 @@ Respond with ONLY a JSON object, no markdown, shaped exactly:
     const iu=$('p-idea-up');if(iu)iu.addEventListener('click',()=>saveIdeaRating(1));
     const idn=$('p-idea-down');if(idn)idn.addEventListener('click',()=>saveIdeaRating(-1));
     const op=$('p-genopen');if(op)op.addEventListener('click',()=>{const w=$('p-genwrap');if(w)w.style.display=w.style.display==='none'?'block':'none';});
-    const gg=$('p-gen-go');if(gg)gg.addEventListener('click',generateFromIdea);const pv=$('p-variations');if(pv)pv.addEventListener('click',openVariations);
+    const gg=$('p-gen-go');if(gg)gg.addEventListener('click',generateFromIdea);const pv=$('p-variations');if(pv)pv.addEventListener('click',openVariations);const cvb=$('p-compose');if(cvb)cvb.addEventListener('click',openCompose);
     const gk=$('p-gen-key');if(gk){try{gk.value=localStorage.getItem('stepoStudio.apiKey')||''}catch(e){}gk.addEventListener('input',e=>{gk.classList.remove('needkey');try{localStorage.setItem('stepoStudio.apiKey',e.target.value.trim())}catch(_){}});}
     bindUsageChip('p-usage');}
 
