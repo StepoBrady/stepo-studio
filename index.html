@@ -2271,13 +2271,19 @@ Respond with ONLY a JSON object, no markdown, shaped exactly:
         const obj=await composeV2(idea,angle);
         const vars=(obj.variations||[]).slice(0,4);
         if(!vars.length){status.textContent='No looks came back. Try rephrasing.';return;}
+        status.textContent='Rendering your looks…';
+        const cnv=document.getElementById('stage');
+        for(const v of vars){v.narrative=obj.narrative;v.fmt=v.fmt||'square';
+          await applyVariation(v);await new Promise(r=>setTimeout(r,240));
+          try{v._thumb=cnv?cnv.toDataURL('image/jpeg',0.72):'';}catch(_){v._thumb='';}}
         status.textContent=vars.length+' looks. Pick one to open it, then tweak or export.';
-        vars.forEach(v=>{v.narrative=obj.narrative;v.fmt=v.fmt||'square';
+        vars.forEach(v=>{
           const c=document.createElement('button');
-          c.style.cssText='text-align:left;border:1px solid #e6e6e2;border-radius:12px;padding:12px;background:#fafaf8;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px;min-height:88px';
+          c.style.cssText='text-align:left;border:1px solid #e6e6e2;border-radius:12px;padding:10px;background:#fafaf8;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:6px';
           c.onmouseenter=()=>{c.style.borderColor='#0C0C0C'};c.onmouseleave=()=>{c.style.borderColor='#e6e6e2'};
           const tn=(typeof TN!=='undefined'&&TN[v.template])||v.template;
-          c.innerHTML='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="background:#0C0C0C;color:#EAF400;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">'+tn+'</span>'+(v.photo?'<span style="font-size:11px;color:#5C6672">📷 '+v.photo+'</span>':'')+'</div><div style="font-weight:600;font-size:14px;line-height:1.25">'+pvText(v)+'</div>';
+          const img=v._thumb?'<img src="'+v._thumb+'" alt="" style="width:100%;border-radius:8px;display:block;background:#000">':'';
+          c.innerHTML=img+'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px"><span style="background:#0C0C0C;color:#EAF400;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">'+tn+'</span>'+(v.photo?'<span style="font-size:11px;color:#5C6672">📷 '+v.photo+'</span>':'')+'</div>';
           c.onclick=()=>{applyVariation(v);wrap.remove();};results.appendChild(c);});
       }catch(e){
         status.textContent = e.message==='nokey' ? 'Paste your Anthropic key above, then Draft it.'
